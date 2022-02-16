@@ -1,7 +1,254 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 1 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="main.js" defer> </script>
+</head>
+<body>
+  <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2022</h1>
+  <h1 align="middle">Project 1: Rasterizer</h1>
+  <h2 align="middle">Christina Shao and Jessica Liang, CS184</h2>
+
+  <br><br>
+
+  <div style="width: 800px; margin: auto;">
+    <h2 align="middle">Overview</h2>
+    <p>
+      Our project rasterizes triangles using various sampling methods. We are able to rasterize triangles of a single color, with interpolated color values, or from a texture map. We can also choose from combinations of different sampling methods, including supersampling, nearest-pixel sampling, nearest-level sampling, and bilinear sampling for pixels and levels.
+    </p>
+    <p>
+      From working on this project, we learned that we can determine the winding order of the given points of a triangle by computing the cross product. We gained practice implementing barycentric interpolation and bilinear sampling, as well as calculating the level of a coordinate in mipmaps.
+    </p>
+  </div>
+  <br>
+
+  <h2>Section I: Rasterization </h2>
+  <div class="accordion">
+    <div class="accordion-item">
+      <div class="accordion-item-header">Task 1: Drawing Single-Color Triangles</div>
+      <div class="accordion-item-body">
+        <div class="accordion-item-body-content">
+          Rasterization is the process of taking an image and transforming it into a set of pixels of output on the screen. Rasterization converts points, lines, and shapes to values in the framebuffer, a block of memory that defines the color of each pixel.
+          <br>
+          <h3>How to Rasterize Triangles</h3>
+          <p>
+          We begin by determining the bounding box of the triangle in order to improve efficiency. Rather than sampling every single pixel on the screen, we use the triangle coordinates and the min/max functions to calculate the right, left, top, and bottom bounds and convert the values to integers using floor/ceil — we will then sample at locations within these bounds.
+          </p>
+          <p>
+          We must also account for the triangle's winding order to correctly determine if the point is inside the triangle. The order that the points are presented determines if the winding order is clockwise or counterclockwise. To determine the winding order of a triangle with points A (x<sub>0</sub>, y<sub>0</sub>), B (x<sub>1</sub>, y<sub>1</sub>), and C (x<sub>2</sub>, y<sub>2</sub>), we take the vectors AB and AC, and calculate the cross products AB×AC and AC×AB. If AB×AC is positive and AC×AB negative, then the triangle is clockwise; if AC×AB is positive and AB×AC negative, then the triangle is counterclockwise. Since we need the points to be in a clockwise order in order for the point-in-triangle test to work, we swap B and C if the given triangle is counterclockwise, resulting in a clockwise winding order.
+          </p>
+          <p>
+          Looping through each coordinate (x, y) within the bounding box, we obtain a sample location at the center of the pixel by adding an offset of ½.
+          We check if the point is within the bounds of a triangle using the point-in-triangle test, where we define three lines and check if the point is inside the region bounded by the three lines. We used the given inside() function to accomplish this. If the point is inside the triangle, we set the color at that location to the given color.
+          </p>
+          <br>
+          <p>
+          Our algorithm checks exactly each sample within the bounding box, so it is no worse than one that does so.
+          </p>
+          <br>
+          <p style="text-align:center;">Screenshot of basic/test5.svg</p>
+          <img src="images/task1.png" align="middle" style="width: 500px; margin-left: 180px;"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-item-header">Task 2: Antialiasing by Supersampling</div>
+      <div class="accordion-item-body">
+        <div class="accordion-item-body-content">
+          <p>Point sampling leaves artifacts such as jaggies in our images. This effect is called aliasing. To obtain a smoother image, we want to filter out high frequencies before sampling. Supersampling is an anti-aliasing method where we approximate the effect of a 1-pixel box by sampling at multiple locations within a pixel and averaging their values.
+          </p>
+
+          <h3>Our Supersampling Algorithm</h3>
+          <p>
+          We modified the rasterization pipeline by introducing an intermediate array, sample_buffer, which stores sample_rate*width*height colors.
+          </p>
+          <p>
+          For every pixel, we split it up into sample_rate subpixels, sampled at the subpixel locations, and stored the colors at the scaled locations in sample_buffer.
+          </p>
+          <p>
+          We also changed the fill_pixel() function to handle supersampling for points and lines, by filling in the corresponding extra indices in sample_buffer with the given color.
+          </p>
+          <p>
+          After populating the sample_buffer array, we resolve these values to the framebuffer by averaging the color values per pixel. For example, for a sampling rate of 4, we divide the pixel into 4 sections and take the average color of these 4 sections from the sample_buffer, then set this averaged color into the frame buffer.
+          </p>
+          <p>
+          This supersampling algorithm results in antialiasing of our triangles because it filters out higher frequencies (sharper changes) at the edges of the triangles by averaging adjacent subpixels.
+          </p>
+          <br>
+          <table>
+            <tr>
+              <td><p>sample rate 1</p><img src="images/supersample1.png" align="middle" style="width: 400px;"/></td>
+              <td><p>sample rate 4</p><img src="images/supersample4.png" align="middle" style="width: 400px;"/></td>
+            </tr>
+            <tr>
+              <td><p>sample rate 16</p><img src="images/supersample16.png" align="middle" style="width: 400px;"/></td>
+            </tr>
+          </table>
+          <p>
+          These results are observed since supersampling with higher rates increases the blurring of high frequency parts of the image. This reduces the presence of “jaggies” and creates smoother edges of the shapes.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-item-header">Task 3: Transforms</div>
+      <div class="accordion-item-body">
+        <div class="accordion-item-body-content">
+          <img src="images/robot.png" align="middle" width="400px" style="margin-left:275px"/>
+          <p>We raised both of Cubeman’s arms by rotating the left arm by 45 degrees and the right arm by -45 degrees. Cubeman is now celebrating an accomplishment.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Section II: Sampling</h2>
+  <div class="accordion">
+    <div class="accordion-item">
+      <div class="accordion-item-header">Task 4: Barycentric Coordinates</div>
+      <div class="accordion-item-body">
+        <div class="accordion-item-body-content">
+          Barycentric coordinates express the location of a point located on a triangle using 3 scalars that represent weighted distances to a vertex. We compute the values of these scalars using the following equation.
+          <img src="images/barycentric.png" align="middle" width="400px"/>
+          <br>
+          <br>
+          <table>
+            <tr>
+              <td style="width: 400px;">The closer (x, y) is to the vertex corresponding to A, the larger the weight ɑ is; the closer to B, the larger β is, and similarly for C and ɣ. ɑ, β, and ɣ are calculated with the following formulas.</td>
+              <td>
+                <img src="images/barycentric2.png" align="middle" style="margin-left: 50px;"/>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <img src="images/baryTriangle.png" align="middle" style="margin-left: 40px;"/>
+              </td>
+              <td style="padding-right: 24px;">
+                For example, we have a triangle with vertices colored red, green, and blue. When ɑ = 1, this represents point A, the redmost corner of the triangle. When ɑ = ⅓, β = ⅓, and ɣ = ⅓, this represents the center of the triangle, where all three colors are given equal weight. The closer a point is to a vertex, the higher the influence of that vertex’s color on the point’s color.
+              </td>
+            </tr>
+          </table>
+          <br><br>
+          <table>
+            <tr>
+              <td><div style="text-align: center; width: 850px;">Screenshot of svg/basic/test7.svg</div><img src="images/test7svg.png" style="margin-left: 175px; width: 500px;"/></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-item-header">Task 5: "Pixel sampling" for texture mapping</div>
+      <div class="accordion-item-body">
+        <div class="accordion-item-body-content">
+          Pixel sampling is determining the color value at a certain pixel location on the screen space using a given texture map.
+          <br>
+          When we want to sample a coordinate (x, y) on the screen space, we first convert the location to the corresponding coordinate (u, v) using barycentric interpolation and the given (u<sub>i</sub>, v<sub>i</sub>) points. We pass this (u, v) coordinate onto the sample() function, which determines whether to call the sample_nearest() or sample_bilinear() function based on the given psm parameter. Each sample method must also scale (u, v) by the width and height of the screen space image, since (u<sub>i</sub>, v<sub>i</sub>) and thus (u, v) are floating-point values between 0 and 1.
+          <br>
+          <br>
+          Nearest-pixel sampling finds the nearest integer values to the scaled u and v floating-point values by using the built-in round() function. It then finds the color at the resulting integer coordinate on the texture map.
+          <br>
+          Bilinear sampling finds the nearest 4 integer-value coordinates to the scaled u and v floating point values. It then computes a weighted sum of the color values on the texture map at each of the 4 nearest points using the distances from the scaled (u, v) point for weights. The closer the (u, v) point is to one of the 4 points, the larger the weight, and vice versa.
+          <br><br><br>
+          <table>
+            <tr>
+              <td><div>Nearest pixel sampling at rate 1</div><img src="images/nearest1.png" style="width: 400px;"><br></td>
+              <td><div>Nearest pixel sampling at rate 16</div><img src="images/nearest16.png" style="width: 400px;"><br></td>
+            </tr>
+            <tr>
+              <td><div>Bilinear pixel sampling at rate 1</div><img src="images/bilinear1.png" style="width: 400px;"></td>
+              <td><div>Bilinear pixel sampling at rate 16</div><img src="images/bilinear16.png" style="width: 400px;"></td>
+            </tr>
+          </table>
+          <p>
+          For the chosen part of the image, bilinear sampling results in less aliasing than nearest sampling and looks smoother than even nearest sampling with supersampling.
+          </p>
+          <p>
+          There is a large difference between the methods for high frequencies, since nearest sampling might alias fast-changing parts of the image, while bilinear sampling takes the weighted sum of a small portion instead.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <div class="accordion-item-header">Task 6: "Level sampling" with mipmaps for texture mapping</div>
+      <div class="accordion-item-body">
+        <div class="accordion-item-body-content">
+          <p>
+          Level sampling supports sampling at different mipmap levels. We can sample at either the nearest appropriate mipmap level, or at two adjacent mipmap levels and take a weighted sum for bilinear sampling. We calculate the level using the following equation:
+          </p>
+          <img src="images/level_eq.png">
+          <p>
+          The derivatives in the equation are calculated by taking the difference between adjacent pixels. For example, suppose we define a function f that converts screen space coordinates to texture space using barycentric interpolation. To calculate du/dx, we first find f(x, y) and f(x+1, y). Then, we subtract the x values of f(x+1, y) and f(x, y) to get du/dx. In summary:
+          <br>
+          du/dx = f(x+1, y).x - f(x, y).x<br>
+          dv/dx = f(x+1, y).y - f(x, y).y<br>
+          du/dy = f(x, y+1).x - f(x, y).x<br>
+          dv/dy = f(x, y+1).y - f(x, y).y<br>
+          </p>
+          <p>
+          We can then calculate D using the equations above.
+          </p>
+          <p>
+          For nearest level sampling, we find the nearest integer value to D and sample at that mipmap level. For bilinear level sampling, we find the two nearest integer values to D using floor/ceil and calculate the weighted sum of the sampled values using the difference between D and each of the two levels.
+          </p>
+          <br>
+          <p>
+          While supersampling takes longer to compute and uses more memory, it results in a greater antialiasing power and creates an overall smoother image. Supersampling uses a significant amount of memory in order to store intermediate values in the sample_buffer.
+          </p>
+          <p>
+          Pixel sampling and level sampling have a greater antialiasing power than supersampling. This is because pixel and level sampling take a weighted sum while supersampling takes pure average values. Pixel sampling is slower than level sampling but uses less memory, while level sampling uses more memory but is faster.
+          </p>
+          <br>
+          <table>
+            <tr>
+              <td>
+                <p>Original image</p>
+                <img src="./images/moire.png">
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p>L_ZERO and P_NEAREST</p>
+                <img src="./images/zero_nearest.png" style="width: 400px;">
+              </td>
+              <td>
+                <p>L_ZERO and P_LINEAR</p>
+                <img src="./images/zero_linear.png" style="width: 400px;">
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <p>L_NEAREST and P_NEAREST</p>
+                <img src="./images/nearest_nearest.png" style="width: 400px;">
+              </td>
+              <td>
+                <p>L_NEAREST and P_LINEAR</p>
+                <img src="./images/nearest_linear.png" style="width: 400px;">
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
