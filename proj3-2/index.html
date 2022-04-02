@@ -1,7 +1,151 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }
+    table {
+        width: 90%;
+        padding: 15px 0px;
+    }
+    td {
+        padding: 10px 0px;
+    }
+  </style> 
+<title>Jessica & Christina  |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3: PathTracer</h1>
+    <h2 align="middle">Jessica Liang and Christina Shao</h2>
+
+    <div class="padded">
+        <p>In this project, we implemented support for rendering mirror and glass materials as well as creating the depth of field effect by simulating a thin lens. We wrote code for reflecting a light ray to render a mirror material and combined reflection and refraction to render glass. We generated rays for a thin lens by sampling a point on the lens and returning a ray that originates from the lens to the point in focus.
+            <br>Initially, our code for depth of field produced images that showed only the bottom left corner of the scene at around one half the actual scale. We fixed this by changing our implementation for the point in focus.
+        </p>
+
+    <h2 align="middle">Part 1: Mirror and Glass Materials</h2>
+        <strong>Implementation</strong>
+        <p>
+            In the BSDF::reflect() function, we simply reflect the ray about the normal. We then use this reflect() function in MirrorBSDF::sample_f() to produce mirror reflection. Next, we implemented the BSDF::refract() function using Snell’s Law, accounting for total internal reflection. Finally, to simulate a glass material, we combined reflection and refraction using Schlick's approximation and wrote the GlassBSDF::sample_f() function.
+        </p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/part1/part1_0.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 0</figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/part1/part1_1.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 1</figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/part1/part1_2.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 2</figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/part1/part1_3.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 3</figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/part1/part1_4.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 4</figcaption>
+                    </td>
+                    <td align="middle">
+                    <img src="images/part1/part1_5.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 5</figcaption>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="middle">
+                    <img src="images/part1/part1_100.png" width="480px" />
+                    <figcaption align="middle">CBSpheres with max ray depth 100</figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <strong>New multibounce effects at each depth</strong>
+        <p>
+            1: Spheres show reflection of area light.
+            <br>2: Spheres show reflection of surrounding environment. Reflection of right sphere in left sphere looks like right sphere from depth 1.
+            <br>3: Right sphere is much brighter. Reflection of right sphere in left sphere looks like right sphere from depth 2.
+            <br>4: Some light bounces of right wall from being refracted through right sphere. Some refracted light bounces off floor onto bottom of right sphere. Reflection of right sphere in left sphere looks like right sphere from depth 3.
+            <br>5: Reflection of right sphere in left sphere looks like right sphere from depth 4.
+            <br>100: Both spheres are brighter.
+        </p>
+        <strong>Bounce numbers and effects</strong>
+        <p>
+            Both spheres show the reflection of the state of the spheres and background from the previous ray depth. As bounce number increases, the rendered images appear brighter.
+        </p>
+
+    <h2 align="middle">Part 4: Depth of Field</h2>
+        <p><strong>Implementation Details: </strong>In this part, we simulate lens to create the depth of field effect by implementing <code>Camera::generate_ray_for_thin_lens()</code>. Similar to the previous project, we first convert the input x,y values into camera space to find the ray direction, which is used to find the point of focus. Then, we uniformly sample the lens with a random radius rndR and random theta rndTheta, to get a sampled point on the lens. We find the direction of the ray from the lens to the point of focus by subtracting our sampled point from the point of focus. Lastly, we perform camera to world conversion and output a ray after adding pos to the origin. </p>
+
+        <p><strong>Pinhole vs thin-lens camera model:</strong> In a pinhole camera model, light comes in from one direction and therefore, everything is in focus. Meanwhile, a thin-lens camera model has the depth of field effect, which is similar to what real cameras and humans see. Objects are only in focus if they are within a plane that is at focalDistance from the lens. </p>
+
+        <p>The following four images is a "focus stack" where we focus at 4 visibly different depths through a scene. A focal depth similar to the distance of the object allows the object to be in focus while focal depths larger or smaller than the distance make the object appear out of focus.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/part4/focus-stack/CBdragon_3.png" width="250px" />
+                    <figcaption align="middle">focal distance = 3</figcaption>
+                    <td align="middle">
+                        <img src="images/part4/focus-stack/CBdragon-4-5.png" width="250px" />
+                        <figcaption align="middle">focal distance = 4.5 (focusing on dragon's head)</figcaption>
+        
+                </tr>
+                    <td align="middle">
+                        <img src="images/part4/focus-stack/CBdragon_5.png" width="250px" />
+                        <figcaption align="middle">focal distance = 5 (focusing on dragon's tail)</figcaption>
+                    <td align="middle">
+                        <img src="images/part4/focus-stack/CBdragon_6.png" width="250px" />
+                        <figcaption align="middle">focal distance = 6</figcaption>
+                <tr>
+
+                </tr>
+            </table>
+        </div>
+  
+        <br>
+        <br>
+        <p>The following four images is a sequence of 4 pictures with visibly different aperture sizes, all focused at the same point in a scene. Increasing aperture increases the blurriness of the image but allows more light.</p>
+        <div align="center">
+            <table style="width=100%">
+                <tr>
+                    <td align="middle">
+                    <img src="images/part4/part4_b_0-25.png" width="250px" />
+                    <figcaption align="middle">aperture size = 0.25</figcaption>
+                    <td align="middle">
+                        <img src="images/part4/part4_b_0-5.png" width="250px" />
+                        <figcaption align="middle">aperture size = 0.5</figcaption>
+                </tr>
+                <tr>
+                    <td align="middle">
+                        <img src="images/part4/part4_b_1.png" width="250px" />
+                        <figcaption align="middle">aperture size = 1</figcaption>
+                    <td align="middle">
+                        <img src="images/part4/part4_b_2.png" width="250px" />
+                        <figcaption align="middle">aperture size = 2</figcaption>
+                </tr>
+            </table>
+        </div>
+
+</div>
+</body>
 </html>
+
+
+
+
